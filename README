@@ -62,13 +62,18 @@ a positive integer parameter K which governs the amount of processing required
 to perform the encryption and decryption: larger K takes more time.
 
 The procedure is as follows: the sequence of integers N, N + 1 ... is used,
-each in turn as input to the Collatz formula; for each sequence of integers
-output from the formula, the even ones are discarded, and the odd ones are used in
+each in turn as a starting input to the Collatz formula, to produce a sequence
+of output integers ending in 1. For each such output sequence, the even ones (and
+the terminating integer 1) are discarded, and the remaining odd ones are used in
 turn TBD. The process stops when K Collatz output integers have been used.
 
 TBD how to cleanly reverse process for decryption? Or make transformation performed
 using these integers symmetrical, so it can be performed in either order? But that
 might weaken the encryption.
+
+TBD could collect the K necessary integers and use them in reverse for encryption.
+That way, decryption could generate the sequence in the forward direction, and
+stop at the right place without knowing K beforehand.
 
 (The choice of odd integers only is done to make the sequence less predictable,
 since odd integers never occur in succession in a Collatz “hailstone” sequence,
@@ -87,5 +92,3 @@ running for an infeasibly large amount of time without producing a meaningful re
 The attacker cannot reliably tell when to stop it, since the user may indeed have chosen a
 very large value of K. All they can do is take a guess after some arbitrary amount
 of time that the value of N being tried is probably wrong.
-
-TBD
