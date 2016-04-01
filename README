@@ -95,3 +95,9 @@ running for an infeasibly large amount of time without producing a meaningful re
 The attacker cannot reliably tell when to stop it, since the user may indeed have chosen a
 very large value of K. All they can do is take a guess after some arbitrary amount
 of time that the value of N being tried is probably wrong.
+
+The enclosed Python script, called “wildgoose”, is a sample implementation of this
+concept.
+
+Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
+2016 April 1
