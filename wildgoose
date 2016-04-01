@@ -22,13 +22,15 @@
 #     crypt_alg -- the name of the encryption algorithm (currently only “AES-128”)
 #     hash_alg  -- the name of the hash algorithm (currently only “SHA-256”)
 #     iv        -- the initialization vector to use with the encryption algorithm
-#     crypt     -- the encrypted data
-#     hash      -- the hash of the encrypted data
+#     crypt     -- the crypt block (see below)
+#     hash      -- the hash of the decrypted crypt block
 #
-# The encrypted data is also in JSON format (once it has been decrypted). The
+# The crypt block is also in JSON format (once it has been decrypted). The
 # fields are:
+#
 #     text      -- the plaintext
-#     hash      -- the hash of the plaintext
+#     hash      -- the hash of the IV + plaintext
+#
 # The inner JSON may be padded with blanks to make it an exact multiple of the
 # encryption block size in length.
 #-
@@ -185,14 +187,17 @@ if __name__ == "__main__" :
         start = int(start)
         limit = int(limit)
         plaintext = sys.stdin.read().encode("utf-8")
-        hash = hash_alg["class"](plaintext).digest()
-          # fixme: should I offer a separate choice of hash algorithm here?
         crypt_args = dict(crypt_alg["extra_args"])
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
         if crypt_alg["need_iv"] :
-            crypt_args["IV"] = Random.new().read(crypt_alg["block_size"])
+            iv = Random.new().read(crypt_alg["block_size"])
+            crypt_args["IV"] = iv
+        else :
+            iv = b""
         #end if
+        hash = hash_alg["class"](iv + plaintext).digest()
+          # fixme: should I offer a separate choice of hash algorithm here?
         to_encrypt = io.BytesIO()
         to_encrypt.write(b"{\n")
         to_encrypt.write(b"    \"text\": %s,\n" % repr(json_dumpbytes(plaintext)).encode("ascii"))
@@ -237,7 +242,10 @@ if __name__ == "__main__" :
         hash_alg = hash_algorithms[hash_alg_name]
         crypt_args = dict(crypt_alg["extra_args"])
         if crypt_alg["need_iv"] :
-            crypt_args["IV"] = cryptform["iv"]
+            iv = cryptform["iv"]
+            crypt_args["IV"] = iv
+        else :
+            iv = b""
         #end if
         limit = 0
         if verbose :
@@ -268,7 +276,7 @@ if __name__ == "__main__" :
                 #end if
                 cryptin_json = json.load(io.StringIO(cryptin_text.decode("utf-8")))
                 plaintext = json_tobytes(cryptin_json["text"])
-                hash = hash_alg["class"](plaintext).digest()
+                hash = hash_alg["class"](iv + plaintext).digest()
                 if hash != json_tobytes(cryptin_json["hash"]) :
                     raise RuntimeError("inner hash mismatch: %s vs %s" % (hash, json_tobytes(cryptin_json["hash"])))
                 #end if
