@@ -187,9 +187,6 @@ if __name__ == "__main__" :
         plaintext = sys.stdin.read().encode("utf-8")
         hash = hash_alg["class"](plaintext).digest()
           # fixme: should I offer a separate choice of hash algorithm here?
-        plaintext += bytes \
-          (
-          )
         crypt_args = dict(crypt_alg["extra_args"])
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
