@@ -1,5 +1,10 @@
 This is an experiment in plausible-deniability encryption.
 
+Copyright 2016 by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>. This
+document is licensed CC0
+<https://creativecommons.org/publicdomain/zero/1.0/>; do with it what
+you will.
+
    >**WARNING**: This actual implemention is **not secure enough** for production use.
    There are very likely a hundred different ways to attack the program that do not
    involve the strength or otherwise of the mathematical theory itself. What I want
@@ -98,6 +103,3 @@ of time that the value of N being tried is probably wrong.
 
 The enclosed Python script, called “wildgoose”, is a sample implementation of this
 concept.
-
-Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
-2016 April 1

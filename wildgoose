@@ -36,6 +36,11 @@
 #
 # The inner JSON may be padded with blanks to make it an exact multiple of the
 # encryption block size in length.
+#
+# Copyright 2016 by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>. This
+# script is licensed CC0
+# <https://creativecommons.org/publicdomain/zero/1.0/>; do with it
+# what you will.
 #-
 
 import sys
