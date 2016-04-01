@@ -45,6 +45,7 @@ crypt_algorithms = \
             {
                 "class" : AES.AESCipher,
                 "keylen" : 16,
+                "block_size" : AES.block_size,
                 "extra_args" : {"mode" : AES.MODE_CBC},
                 "need_iv" : True,
             },
@@ -172,7 +173,7 @@ if __name__ == "__main__" :
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
         if crypt_alg["need_iv"] :
-            crypt_args["IV"] = Random.new().read(crypt_alg["keylen"])
+            crypt_args["IV"] = Random.new().read(crypt_alg["block_size"])
         #end if
         crypt = crypt_alg["class"](key, **crypt_args)
         crypttext = crypt.encrypt(plaintext)
