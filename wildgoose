@@ -139,101 +139,105 @@ def json_tobytes(s) :
 # Mainline
 #-
 
-crypt_alg_name = "AES-128"
-hash_alg_name = "SHA-256"
-verbose = False
-opts, args = getopt.getopt \
-  (
-    sys.argv[1:],
-    "",
-    ["crypt-alg=", "hash-alg=", "verbose"]
-  )
-for keyword, value in opts :
-    if keyword == "crypt-alg" :
-        crypt_alg_name = value
-    elif keyword == "hash-alg" :
-        hash_alg_name = value
-    elif keyword == "--verbose" :
-        verbose = True
-    #end if
-#end for
-function = FUNCTION(args[0])
+if __name__ == "__main__" :
 
-if function == FUNCTION.ENCRYPT :
-    crypt_alg = crypt_algorithms[crypt_alg_name]
-    hash_alg = hash_algorithms[hash_alg_name]
-    start, limit = args[1:]
-    start = int(start)
-    limit = int(limit)
-    plaintext = sys.stdin.read().encode("utf-8")
-    crypt_args = dict(crypt_alg["extra_args"])
-    key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
-        .digest()[:crypt_alg["keylen"]]
-    if crypt_alg["need_iv"] :
-        crypt_args["IV"] = Random.new().read(crypt_alg["keylen"])
-    #end if
-    crypt = crypt_alg["class"](key, **crypt_args)
-    crypttext = crypt.encrypt(plaintext)
-    hash = hash_alg["class"](plaintext).digest()
-      # fixme: should I offer a separate choice of hash algorithm here?
-    sys.stdout.write("{\n")
-    sys.stdout.write("    \"crypt_alg\": %s,\n" % json.dumps(crypt_alg_name))
-    sys.stdout.write("    \"hash_alg\": %s,\n" % json.dumps(hash_alg_name))
-    if crypt_alg["need_iv"] :
-        sys.stdout.write("    \"iv\": %s,\n" % json_dumpbytes(crypt_args["IV"]))
-    #end if
-    sys.stdout.write("    \"crypt\": %s,\n" % json_dumpbytes(crypttext))
-    sys.stdout.write("    \"hash\": %s\n" % json_dumpbytes(hash))
-    sys.stdout.write("}\n")
-elif function == FUNCTION.DECRYPT :
-    start, = args[1:]
-    start = int(start)
-    cryptform = json.load(sys.stdin)
-    for key in ("iv", "crypt", "hash") :
-        if key in cryptform :
-            cryptform[key] = json_tobytes(cryptform[key])
+    crypt_alg_name = "AES-128"
+    hash_alg_name = "SHA-256"
+    verbose = False
+    opts, args = getopt.getopt \
+      (
+        sys.argv[1:],
+        "",
+        ["crypt-alg=", "hash-alg=", "verbose"]
+      )
+    for keyword, value in opts :
+        if keyword == "crypt-alg" :
+            crypt_alg_name = value
+        elif keyword == "hash-alg" :
+            hash_alg_name = value
+        elif keyword == "--verbose" :
+            verbose = True
         #end if
     #end for
-    crypt_alg_name = cryptform["crypt_alg"]
-    hash_alg_name = cryptform["hash_alg"]
-    crypt_alg = crypt_algorithms[crypt_alg_name]
-    hash_alg = hash_algorithms[hash_alg_name]
-    crypt_args = dict(crypt_alg["extra_args"])
-    if crypt_alg["need_iv"] :
-        crypt_args["IV"] = cryptform["iv"]
-    #end if
-    limit = 0
-    if verbose :
-        start_time = time.time()
-        last_update_time = start_time
-    #end if
-    seq = collatz_plus(start)
-    numbers = []
-    while True :
-        numbers.append(next(seq))
-        if verbose :
-            now = time.time()
-            if now - last_update_time >= 3.0 :
-                sys.stderr.write("trying %d\n" % len(numbers))
-                sys.stderr.flush()
-                last_update_time = now
-            #end if
-        #end if
-        key = hash_alg["class"](bytes(intbits(numbers))) \
+    function = FUNCTION(args[0])
+
+    if function == FUNCTION.ENCRYPT :
+        crypt_alg = crypt_algorithms[crypt_alg_name]
+        hash_alg = hash_algorithms[hash_alg_name]
+        start, limit = args[1:]
+        start = int(start)
+        limit = int(limit)
+        plaintext = sys.stdin.read().encode("utf-8")
+        crypt_args = dict(crypt_alg["extra_args"])
+        key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
+        if crypt_alg["need_iv"] :
+            crypt_args["IV"] = Random.new().read(crypt_alg["keylen"])
+        #end if
         crypt = crypt_alg["class"](key, **crypt_args)
-        plaintext = crypt.decrypt(cryptform["crypt"])
+        crypttext = crypt.encrypt(plaintext)
         hash = hash_alg["class"](plaintext).digest()
           # fixme: should I offer a separate choice of hash algorithm here?
-        if hash == cryptform["hash"] :
-            if verbose :
-                sys.stderr.write("Success at %d\n" % len(numbers))
-            #end if
-            sys.stdout.write(plaintext.decode("utf-8"))
-            break
+        sys.stdout.write("{\n")
+        sys.stdout.write("    \"crypt_alg\": %s,\n" % json.dumps(crypt_alg_name))
+        sys.stdout.write("    \"hash_alg\": %s,\n" % json.dumps(hash_alg_name))
+        if crypt_alg["need_iv"] :
+            sys.stdout.write("    \"iv\": %s,\n" % json_dumpbytes(crypt_args["IV"]))
         #end if
-    #end while
-    if verbose :
-        sys.stderr.write("Time taken: %.2gs\n" % (time.time() - start_time))
+        sys.stdout.write("    \"crypt\": %s,\n" % json_dumpbytes(crypttext))
+        sys.stdout.write("    \"hash\": %s\n" % json_dumpbytes(hash))
+        sys.stdout.write("}\n")
+    elif function == FUNCTION.DECRYPT :
+        start, = args[1:]
+        start = int(start)
+        cryptform = json.load(sys.stdin)
+        for key in ("iv", "crypt", "hash") :
+            if key in cryptform :
+                cryptform[key] = json_tobytes(cryptform[key])
+            #end if
+        #end for
+        crypt_alg_name = cryptform["crypt_alg"]
+        hash_alg_name = cryptform["hash_alg"]
+        crypt_alg = crypt_algorithms[crypt_alg_name]
+        hash_alg = hash_algorithms[hash_alg_name]
+        crypt_args = dict(crypt_alg["extra_args"])
+        if crypt_alg["need_iv"] :
+            crypt_args["IV"] = cryptform["iv"]
+        #end if
+        limit = 0
+        if verbose :
+            start_time = time.time()
+            last_update_time = start_time
+        #end if
+        seq = collatz_plus(start)
+        numbers = []
+        while True :
+            numbers.append(next(seq))
+            if verbose :
+                now = time.time()
+                if now - last_update_time >= 3.0 :
+                    sys.stderr.write("trying %d\n" % len(numbers))
+                    sys.stderr.flush()
+                    last_update_time = now
+                #end if
+            #end if
+            key = hash_alg["class"](bytes(intbits(numbers))) \
+                .digest()[:crypt_alg["keylen"]]
+            crypt = crypt_alg["class"](key, **crypt_args)
+            plaintext = crypt.decrypt(cryptform["crypt"])
+            hash = hash_alg["class"](plaintext).digest()
+              # fixme: should I offer a separate choice of hash algorithm here?
+            if hash == cryptform["hash"] :
+                if verbose :
+                    sys.stderr.write("Success at %d\n" % len(numbers))
+                #end if
+                sys.stdout.write(plaintext.decode("utf-8"))
+                break
+            #end if
+        #end while
+        if verbose :
+            sys.stderr.write("Time taken: %.2gs\n" % (time.time() - start_time))
+        #end if
     #end if
+
 #end if
