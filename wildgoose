@@ -263,6 +263,7 @@ if __name__ == "__main__" :
             start_time = time.time()
             last_update_time = start_time
         #end if
+        # could run the following multithreaded for greater speed
         seq = collatz_plus(start)
         numbers = []
         while True :
