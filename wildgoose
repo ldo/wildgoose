@@ -1,0 +1,239 @@
+#!/usr/bin/python3
+#+
+# Proof-of-concept of encryption with nondeterministic decryption. See
+# accompanying README for a more detailed description. Invoke this script
+# as follows:
+#
+#     wildgoose encrypt «key» «limit»
+#
+# to encrypt standard input with the integer sequence starting from «key»
+# (which is some positive integer,preferably large) continuing for «limit»
+# (which is also a positive integer). The encrypted data is written to
+# standard output in JSON format. To decrypt, use
+#
+#     wildgoose deccrypt «key»
+#
+# where the standard input must be in the same JSON format as generated
+# by the encrypt function. The decrypted data is written to standard
+# output.
+#-
+
+import sys
+import enum
+import math
+import time
+import json
+import getopt
+
+from Crypto.Hash import \
+    SHA256
+from Crypto.Cipher import \
+    AES
+from Crypto import \
+    Random
+
+hash_algorithms = \
+    {
+        "SHA-256" :
+            {
+                "class" : SHA256.SHA256Hash,
+            },
+    }
+crypt_algorithms = \
+    {
+        "AES-128" :
+            {
+                "class" : AES.AESCipher,
+                "keylen" : 16,
+                "extra_args" : {"mode" : AES.MODE_CBC},
+                "need_iv" : True,
+            },
+    }
+
+def collatz(n) :
+    "iterator which yields a hailstone sequence starting from the specified integer."
+    assert isinstance(n, int) and n > 0
+    while True :
+        yield n
+        if n == 1 :
+            break
+        if n & 1 != 0 :
+            n = 3 * n + 1
+        else : # n even
+            n //= 2
+        #end if
+    #end while
+#end collatz
+
+def collatz_plus(n) :
+    "iterator which yields hailstone sequences for n, n + 1 ... without end, with even" \
+    " integers and 1 filtered out."
+    while True :
+        for i in collatz(n) :
+            if i > 1 and i & 1 != 0 :
+                yield i
+            #end if
+        #end for
+        n += 1
+    #end while
+#end collatz_plus
+
+def collatz_plus_upto(n, k) :
+    "returns a list of the first k members of the collatz_plus sequence starting from n."
+    result = []
+    seq = collatz_plus(n)
+    for i in range(k) :
+        result.append(next(seq))
+    #end for
+    return \
+        result
+#end collatz_plus_upto
+
+def intbits(seq) :
+    "given an iterator which yields a sequence of positive integers, returns a stream of" \
+    " integer byte values constructed from concatenating those integers together."
+    seq = iter(seq) # if not already an iterator
+    b = 0
+    offset = 0
+    while True :
+        n = next(seq, None)
+        if n == None :
+            yield b
+            break
+        #end if
+        assert isinstance(n, int) and n > 1
+        nr_bits = math.floor(math.log2(n)) # excluding most-significant bit
+        while nr_bits != 0 :
+            extract = min(nr_bits, 8 - offset)
+            b |= n & 1 << extract - 1
+            offset += extract
+            n >>= extract
+            nr_bits -= extract
+            if offset == 8 :
+                yield b
+                b = 0
+                offset = 0
+            #end if
+        #end while
+    #end while
+#end intbits
+
+@enum.unique
+class FUNCTION(enum.Enum) :
+    "functions I can perform."
+    ENCRYPT = "encrypt"
+    DECRYPT = "decrypt"
+#end FUNCTION
+
+def json_dumpbytes(b) :
+    return \
+        list(b)
+#end json_dumpbytes
+
+def json_tobytes(s) :
+    return \
+        bytes(s)
+#end json_tobytes
+
+#+
+# Mainline
+#-
+
+crypt_alg_name = "AES-128"
+hash_alg_name = "SHA-256"
+verbose = False
+opts, args = getopt.getopt \
+  (
+    sys.argv[1:],
+    "",
+    ["crypt-alg=", "hash-alg=", "verbose"]
+  )
+for keyword, value in opts :
+    if keyword == "crypt-alg" :
+        crypt_alg_name = value
+    elif keyword == "hash-alg" :
+        hash_alg_name = value
+    elif keyword == "--verbose" :
+        verbose = True
+    #end if
+#end for
+function = FUNCTION(args[0])
+
+if function == FUNCTION.ENCRYPT :
+    crypt_alg = crypt_algorithms[crypt_alg_name]
+    hash_alg = hash_algorithms[hash_alg_name]
+    start, limit = args[1:]
+    start = int(start)
+    limit = int(limit)
+    plaintext = sys.stdin.read().encode("utf-8")
+    crypt_args = dict(crypt_alg["extra_args"])
+    key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
+        .digest()[:crypt_alg["keylen"]]
+    if crypt_alg["need_iv"] :
+        crypt_args["IV"] = Random.new().read(crypt_alg["keylen"])
+    #end if
+    crypt = crypt_alg["class"](key, **crypt_args)
+    crypttext = crypt.encrypt(plaintext)
+    hash = hash_alg["class"](plaintext).digest()
+      # fixme: should I offer a separate choice of hash algorithm here?
+    sys.stdout.write("{\n")
+    sys.stdout.write("    \"crypt_alg\": %s,\n" % json.dumps(crypt_alg_name))
+    sys.stdout.write("    \"hash_alg\": %s,\n" % json.dumps(hash_alg_name))
+    if crypt_alg["need_iv"] :
+        sys.stdout.write("    \"iv\": %s,\n" % json_dumpbytes(crypt_args["IV"]))
+    #end if
+    sys.stdout.write("    \"crypt\": %s,\n" % json_dumpbytes(crypttext))
+    sys.stdout.write("    \"hash\": %s\n" % json_dumpbytes(hash))
+    sys.stdout.write("}\n")
+elif function == FUNCTION.DECRYPT :
+    start, = args[1:]
+    start = int(start)
+    cryptform = json.load(sys.stdin)
+    for key in ("iv", "crypt", "hash") :
+        if key in cryptform :
+            cryptform[key] = json_tobytes(cryptform[key])
+        #end if
+    #end for
+    crypt_alg_name = cryptform["crypt_alg"]
+    hash_alg_name = cryptform["hash_alg"]
+    crypt_alg = crypt_algorithms[crypt_alg_name]
+    hash_alg = hash_algorithms[hash_alg_name]
+    crypt_args = dict(crypt_alg["extra_args"])
+    if crypt_alg["need_iv"] :
+        crypt_args["IV"] = cryptform["iv"]
+    #end if
+    limit = 0
+    if verbose :
+        start_time = time.time()
+        last_update_time = start_time
+    #end if
+    seq = collatz_plus(start)
+    numbers = []
+    while True :
+        numbers.append(next(seq))
+        if verbose :
+            now = time.time()
+            if now - last_update_time >= 3.0 :
+                sys.stderr.write("trying %d\n" % len(numbers))
+                sys.stderr.flush()
+                last_update_time = now
+            #end if
+        #end if
+        key = hash_alg["class"](bytes(intbits(numbers))) \
+            .digest()[:crypt_alg["keylen"]]
+        crypt = crypt_alg["class"](key, **crypt_args)
+        plaintext = crypt.decrypt(cryptform["crypt"])
+        hash = hash_alg["class"](plaintext).digest()
+          # fixme: should I offer a separate choice of hash algorithm here?
+        if hash == cryptform["hash"] :
+            if verbose :
+                sys.stderr.write("Success at %d\n" % len(numbers))
+            #end if
+            sys.stdout.write(plaintext.decode("utf-8"))
+            break
+        #end if
+    #end while
+    if verbose :
+        sys.stderr.write("Time taken: %.2gs\n" % (time.time() - start_time))
+    #end if
+#end if
