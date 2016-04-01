@@ -189,7 +189,7 @@ if __name__ == "__main__" :
         start, limit = args[1:]
         start = int(start)
         limit = int(limit)
-        plaintext = sys.stdin.read().encode("utf-8")
+        plaintext = sys.stdin.buffer.read()
         crypt_args = dict(crypt_alg["extra_args"])
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
@@ -283,7 +283,7 @@ if __name__ == "__main__" :
                 if hash != json_tobytes(cryptin_json["hash"]) :
                     raise RuntimeError("inner hash mismatch: %s vs %s" % (hash, json_tobytes(cryptin_json["hash"])))
                 #end if
-                sys.stdout.write(plaintext.decode("utf-8"))
+                sys.stdout.buffer.write(plaintext)
                 break
             #end if
         #end while
