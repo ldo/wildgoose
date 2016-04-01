@@ -22,6 +22,7 @@ import sys
 import enum
 import math
 import time
+import io
 import json
 import getopt
 
@@ -169,16 +170,37 @@ if __name__ == "__main__" :
         start = int(start)
         limit = int(limit)
         plaintext = sys.stdin.read().encode("utf-8")
+        hash = hash_alg["class"](plaintext).digest()
+          # fixme: should I offer a separate choice of hash algorithm here?
+        plaintext += bytes \
+          (
+          )
         crypt_args = dict(crypt_alg["extra_args"])
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
         if crypt_alg["need_iv"] :
             crypt_args["IV"] = Random.new().read(crypt_alg["block_size"])
         #end if
+        to_encrypt = io.BytesIO()
+        to_encrypt.write(b"{\n")
+        to_encrypt.write(b"    \"text\": %s,\n" % repr(json_dumpbytes(plaintext)).encode("ascii"))
+        to_encrypt.write(b"    \"hash\": %s\n" % repr(json_dumpbytes(hash)).encode("ascii"))
+        to_encrypt.write(b"}\n")
+        to_encrypt.write \
+          (
+                b" "
+            *
+                (
+                    (crypt_alg["block_size"] - to_encrypt.tell() % crypt_alg["block_size"])
+                %
+                    crypt_alg["block_size"]
+                )
+          )
+        to_encrypt.flush()
+        cryptout_text = to_encrypt.getvalue()
         crypt = crypt_alg["class"](key, **crypt_args)
-        crypttext = crypt.encrypt(plaintext)
-        hash = hash_alg["class"](plaintext).digest()
-          # fixme: should I offer a separate choice of hash algorithm here?
+        crypttext = crypt.encrypt(cryptout_text)
+        hash = hash_alg["class"](cryptout_text).digest()
         sys.stdout.write("{\n")
         sys.stdout.write("    \"crypt_alg\": %s,\n" % json.dumps(crypt_alg_name))
         sys.stdout.write("    \"hash_alg\": %s,\n" % json.dumps(hash_alg_name))
@@ -225,12 +247,18 @@ if __name__ == "__main__" :
             key = hash_alg["class"](bytes(intbits(numbers))) \
                 .digest()[:crypt_alg["keylen"]]
             crypt = crypt_alg["class"](key, **crypt_args)
-            plaintext = crypt.decrypt(cryptform["crypt"])
-            hash = hash_alg["class"](plaintext).digest()
+            cryptin_text = crypt.decrypt(cryptform["crypt"])
+            hash = hash_alg["class"](cryptin_text).digest()
               # fixme: should I offer a separate choice of hash algorithm here?
             if hash == cryptform["hash"] :
                 if verbose :
                     sys.stderr.write("Success at %d\n" % len(numbers))
+                #end if
+                cryptin_json = json.load(io.StringIO(cryptin_text.decode("utf-8")))
+                plaintext = json_tobytes(cryptin_json["text"])
+                hash = hash_alg["class"](plaintext).digest()
+                if hash != json_tobytes(cryptin_json["hash"]) :
+                    raise RuntimeError("inner hash mismatch: %s vs %s" % (hash, json_tobytes(cryptin_json["hash"])))
                 #end if
                 sys.stdout.write(plaintext.decode("utf-8"))
                 break
