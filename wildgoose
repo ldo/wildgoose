@@ -46,6 +46,8 @@
 import sys
 import enum
 import math
+from functools import \
+    reduce
 import time
 import io
 import json
@@ -150,6 +152,16 @@ def intbits(seq) :
     #end while
 #end intbits
 
+def rand_interval(lo, hi) :
+    "returns a random real in [lo .. hi)."
+    precision = - round(math.log2(sys.float_info.epsilon))
+    mask = (1 << precision) - 1
+    b = Random.get_random_bytes((precision | 0xff) // 8)
+    b = reduce(lambda a, b : a | b, (b[i] << i * 8 for i in range(len(b))), 0) & mask
+    return \
+        lo + b * (hi - lo) / mask
+#end rand_interval
+
 @enum.unique
 class FUNCTION(enum.Enum) :
     "functions I can perform."
@@ -180,6 +192,7 @@ if __name__ == "__main__" :
     #end if
     function = FUNCTION(sys.argv[1])
     verbose = False
+    random_limit = False
     opts, args = getopt.getopt \
       (
         sys.argv[2:],
@@ -188,7 +201,7 @@ if __name__ == "__main__" :
         +
             {
                 FUNCTION.ENCRYPT :
-                    ["crypt-alg=", "hash-alg="],
+                    ["crypt-alg=", "hash-alg=", "random-limit"],
                 FUNCTION.DECRYPT :
                     [],
             }[function]
@@ -198,6 +211,8 @@ if __name__ == "__main__" :
             crypt_alg_name = value
         elif keyword == "--hash-alg" :
             hash_alg_name = value
+        elif keyword == "--random-limit" :
+            random_limit = True
         elif keyword == "--verbose" :
             verbose = True
         #end if
@@ -209,12 +224,20 @@ if __name__ == "__main__" :
         start, limit = args
         start = int(start)
         limit = int(limit)
+        if random_limit :
+            log_limit = math.log10(limit)
+            use_limit = round(10 ** rand_interval(log_limit - 0.5, log_limit + 0.5))
+            if verbose :
+                sys.stderr.write("use limit %d\n" % use_limit)
+            #end if
+            limit = use_limit
+        #end if
         plaintext = sys.stdin.buffer.read()
         crypt_args = dict(crypt_alg["extra_args"])
         key = hash_alg["class"](bytes(intbits(collatz_plus_upto(start, limit)))) \
             .digest()[:crypt_alg["keylen"]]
         if crypt_alg["need_iv"] :
-            iv = Random.new().read(crypt_alg["block_size"])
+            iv = Random.get_random_bytes(crypt_alg["block_size"])
             crypt_args["IV"] = iv
         else :
             iv = b""
