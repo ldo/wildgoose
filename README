@@ -75,8 +75,9 @@ hard-to-predict recurrence relations, such as the
 [logistic map](http://mathworld.wolfram.com/LogisticMap.html) in its chaotic
 regime, or the formula that defines the
 [Mandelbrot set](http://mathworld.wolfram.com/MandelbrotSet.html). Or alternatively,
-just use any pseudorandom number generator, taking the input *n* and *k* values to
-compute the starting seed.
+just use any pseudorandom number generator, taking the input *n* to compute the
+starting seed, and *k* to determine the number of elements in the output sequence
+to use.
 
 A more detailed encryption procedure is as follows: the sequence of integers *n*,
 *n* + 1, ... is used, each in turn as a starting input to the Collatz
