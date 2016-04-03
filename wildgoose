@@ -134,7 +134,6 @@ def intbits(seq) :
         nr_bits = math.floor(math.log2(n)) - 1
           # excluding most-significant and least-significant bits,
           # since these are always 1
-        sys.stderr.write("%#08x has %d bits\n" % (n, nr_bits)) # debug
         n >>= 1 # discard least-significant bit
         while nr_bits != 0 :
             extract = min(nr_bits, 8 - offset)
@@ -142,7 +141,6 @@ def intbits(seq) :
             offset += extract
             n >>= extract
             nr_bits -= extract
-            sys.stderr.write("extract %d, accum[%d] = %#02x\n" % (extract, offset, b)) # debug
             if offset == 8 :
                 yield b
                 b = 0
