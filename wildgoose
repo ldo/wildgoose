@@ -184,9 +184,9 @@ if __name__ == "__main__" :
         ["crypt-alg=", "hash-alg=", "verbose"]
       )
     for keyword, value in opts :
-        if keyword == "crypt-alg" :
+        if keyword == "--crypt-alg" :
             crypt_alg_name = value
-        elif keyword == "hash-alg" :
+        elif keyword == "--hash-alg" :
             hash_alg_name = value
         elif keyword == "--verbose" :
             verbose = True
