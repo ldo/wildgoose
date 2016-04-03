@@ -140,6 +140,9 @@ def intbits(seq) :
             n >>= extract
             nr_bits -= extract
             if offset == 8 :
+            # fixme: condition should actually be “if offset == 8 or nr_bits == 0”
+            # to avoid truncating last partial byte. But this can’t be fixed without
+            # breaking backward compatibility.
                 yield b
                 b = 0
                 offset = 0
