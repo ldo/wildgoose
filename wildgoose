@@ -125,13 +125,16 @@ def intbits(seq) :
     while True :
         n = next(seq, None)
         if n == None :
-            yield b
+            if offset != 0 :
+                yield b
+            #end if
             break
         #end if
         assert isinstance(n, int) and n > 1
         nr_bits = math.floor(math.log2(n)) - 1
           # excluding most-significant and least-significant bits,
           # since these are always 1
+        sys.stderr.write("%#08x has %d bits\n" % (n, nr_bits)) # debug
         n >>= 1 # discard least-significant bit
         while nr_bits != 0 :
             extract = min(nr_bits, 8 - offset)
@@ -139,10 +142,8 @@ def intbits(seq) :
             offset += extract
             n >>= extract
             nr_bits -= extract
+            sys.stderr.write("extract %d, accum[%d] = %#02x\n" % (extract, offset, b)) # debug
             if offset == 8 :
-            # fixme: condition should actually be “if offset == 8 or nr_bits == 0”
-            # to avoid truncating last partial byte. But this can’t be fixed without
-            # breaking backward compatibility.
                 yield b
                 b = 0
                 offset = 0
