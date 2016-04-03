@@ -24,10 +24,26 @@ patch their copy of the decryption code to bypass such nonsense. No, I’m talki
 about designing such time-wasting into the algorithm itself, so that there is no
 way to shortcut the process.
 
-What are the uses for such an algorithm? Clearly, the value lies in assuming
-that the attacker can get hold of the correct key, but that it is hidden among
-a large number (perhaps thousands or more) of decoy keys, so that they cannot easily
-determine which key to try.
+Perhaps we should call this encryption with *incomplete-key decryption*.
+The “outer” encryption algorithm takes as its key two integers *n* and *k*,
+from which it constructs the encryption key *K* for an “inner” encryption algorithm,
+which is a conventional secret-key algorithm such as AES-128. Any pair (*n*, *k*)
+will always produce the same *K*. The value *n* should have, say, over a dozen
+digits, to make it hard to guess. The value *k* need not be so large; perhaps 4
+or 5 digits is sufficient, depending on the speed of the available hardware and
+the desired decryption time.
+
+After encryption, the value *n* is saved as the secret key, but *the value *k*
+is discarded*. Thus, decryption requires making guesses as to what the value of
+*k* was. Since there is no fixed upper bound on what *k* can be, there can be
+no definite end to the guessing process. If you start with *k* = 1, 2, and so on,
+you will hit the right value eventually--provided you started with the right
+*n*. But if *n* was wrong, you may never realize that.
+
+What are the uses for such an algorithm? One possibility is that the attacker
+can get hold of the correct key, but that it is hidden among a large number
+(perhaps thousands or more) of decoy keys, so that they cannot easily determine
+which key to try.
 
 Some Governments have passed laws requiring users to turn over decryption keys
 on demand. With an algorithm like this, the decryption key could be “hidden in
@@ -48,7 +64,7 @@ to render this strategy impractical. If even decryption with the correct key tak
 a significant amount of time (say, a few seconds), then the number of decoy keys
 need not be so great.
 
-The particular encryption algorithm defined here is based on the [Collatz
+The particular outer encryption algorithm defined here is based on the [Collatz
 recurrence relation](http://mathworld.wolfram.com/CollatzProblem.html). Each
 starting positive integer value produces a sequence of positive integers that
 end with 1. While the lengths of sequences can vary unpredictably, all sequences
@@ -58,30 +74,26 @@ It should be possible to concoct similar algorithms based on other equally
 hard-to-predict recurrence relations, such as the
 [logistic map](http://mathworld.wolfram.com/LogisticMap.html) in its chaotic
 regime, or the formula that defines the
-[Mandelbrot set](http://mathworld.wolfram.com/MandelbrotSet.html).
+[Mandelbrot set](http://mathworld.wolfram.com/MandelbrotSet.html). Or alternatively,
+just use any pseudorandom number generator, taking the input *n* and *k* values to
+compute the starting seed.
 
-The algorithm is a secret-key algorithm (as opposed to a public/private-key
-algorithm like RSA): the same key is used for both encryption and decryption.
-The key is a large random positive integer N. The user encrypting the data also chooses
-a positive integer parameter K which governs the amount of processing required
-to perform the encryption and decryption: larger K takes more time.
-
-The encryption procedure is as follows: the sequence of integers N, N + 1 ... is used,
-each in turn as a starting input to the Collatz formula, to produce a sequence
-of output integers ending in 1. For each such output sequence, the even ones (and
-the terminating integer 1) are discarded, and the remaining odd ones are in
-turn fed into a hash function, such as SHA-256. The process stops when K Collatz output
-integers have been used. The output of the hash (or a sufficiently-long
-initial part of it) is then used as the key to a conventional secret-key algorithm.
-For example, the first 128 bits of the hash could be used as the encryption/decryption
-key with AES-128.
+A more detailed encryption procedure is as follows: the sequence of integers *n*,
+*n* + 1, ... is used, each in turn as a starting input to the Collatz
+formula, to produce a sequence of output integers ending in 1. For each such output
+sequence, the even ones (and the terminating integer 1) are discarded, and the
+remaining odd ones are in turn fed into a hash function, such as SHA-256. The
+process stops when *k* Collatz output integers have been used. The output of the
+hash (or a sufficiently-long initial part of it) is then used as the key to the
+inner encryption algorithm. For example, the first 128 bits of the hash could be
+used as the encryption/decryption key with AES-128.
 
 (The choice of odd integers only greater than 1 is done to make the sequence less
 predictable, since odd integers never occur in succession in a Collatz “hailstone”
 sequence, whereas even ones do.)
 
-For decryption, only the starting number N is needed. The Collatz sequence for N,
-N + 1 ... in turn is generated as before. *Note that, without knowledge of K, there
+For decryption, only the starting number *n* is needed. The Collatz sequence for *n*,
+*n* + 1 ... in turn is generated as before. *Note that, without knowledge of *k*, there
 is no hint as to when the sequence should end.* First, try just the first integer
 in this sequence; put it through the same hash function as before, then try to use
 the result as the decryption key. If this succeeds, then the algorithm stops.
@@ -89,17 +101,17 @@ the result as the decryption key. If this succeeds, then the algorithm stops.
 Otherwise, try computing a hash from the first two integers in the sequence. If that
 doesn’t work, try the first three, and so on.
 
-This algorithm should only terminate if it started with the right value of N, whereupon
-it terminates after having used the first K integers computed.
+This algorithm should only terminate if it started with the right value of *n*, whereupon
+it terminates after having used the first *k* integers computed.
 
-The value K should probably not be recorded anywhere (not even in the user’s memory),
+The value *k* should probably not be recorded anywhere (not even in the user’s memory),
 since it can serve as a clue to the attacker.
 
-If the wrong value of N is used, the decryption algorithm will (we assume) keep
+If the wrong value of *n* is used, the decryption algorithm will (we assume) keep
 running for an infeasibly large amount of time without producing a meaningful result.
 The attacker cannot reliably tell when to stop it, since the user may indeed have chosen a
-very large value of K. All they can do is take a guess after some arbitrary amount
-of time that the value of N being tried is probably wrong.
+very large value of *k*. All they can do is take a guess after some arbitrary amount
+of time that the value of *n* being tried is probably wrong.
 
 The enclosed Python script, called “wildgoose”, is a sample implementation of this
 concept.
