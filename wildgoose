@@ -159,7 +159,7 @@ def rand_interval(lo, hi) :
     b = Random.get_random_bytes((precision | 0xff) // 8)
     b = reduce(lambda a, b : a | b, (b[i] << i * 8 for i in range(len(b))), 0) & mask
     return \
-        lo + b * (hi - lo) / mask
+        lo + b * (hi - lo) / (mask + 1)
 #end rand_interval
 
 @enum.unique
